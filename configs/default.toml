@@ -1,0 +1,3 @@
+# A sample TOML config file.
+CellRadius = 4700
+TxPowerDbm=23
