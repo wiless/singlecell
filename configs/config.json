@@ -1,0 +1,6 @@
+{
+	"CellRadius": 4700,
+	"TxPowerDbm": 46,
+	"Out2IndoorLossDb": 13,
+	"NoiseFigureDb": 7
+}

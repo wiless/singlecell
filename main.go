@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,12 +12,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/wiless/cellular/pathloss"
-
+	"github.com/namsral/flag"
 	cell "github.com/wiless/cellular"
-
 	"github.com/wiless/cellular/antenna"
 	"github.com/wiless/cellular/deployment"
+	"github.com/wiless/cellular/pathloss"
+	"github.com/wiless/channelmodel"
 	"github.com/wiless/vlib"
 )
 
@@ -42,7 +41,7 @@ var singlecell deployment.DropSystem
 var secangles = vlib.VectorF{0.0, 120.0, -120.0}
 
 // var nUEPerCell = 1000
-var nCells = 19 + 42
+var nCells = 7
 var trueCells = 1
 
 var CellRadius float64 = 1000.0
@@ -50,6 +49,9 @@ var TxPowerDbm float64 = 46.0
 var CarriersGHz = vlib.VectorF{0.7}
 var RXTYPES = []string{"MUE"}
 var VTILT float64 = 15.0
+
+var Out2IndoorLossDb float64 = 0
+var NoiseFigureDb float64 = 7 // Update it based on Uplink & Downlink accordingly
 
 var NVillages = 3
 var VillageRadius = 400.0
@@ -158,14 +160,18 @@ func loadDefaults() {
 }
 
 func init() {
-	flag.StringVar(&outdir, "outdir", ".", "Directory where all the output files are generated..")
-	flag.StringVar(&indir, "indir", ".", "Directory where all the input files are read..")
-	help := flag.Bool("help", false, "prints this help")
-	verbose := flag.Bool("v", true, "Print logs verbose mode")
-	flag.Parse()
 
+	fs := flag.NewFlagSetWithEnvPrefix("CELL", "WILESS", flag.ExitOnError)
+	fs.String(flag.DefaultConfigFlagname, "config.cfg", "path to config file")
+
+	fs.StringVar(&outdir, "outdir", ".", "Directory where all the output files are generated..")
+	fs.StringVar(&indir, "indir", ".", "Directory where all the input files are read..")
+	help := fs.Bool("help", false, "prints this help")
+	verbose := fs.Bool("v", true, "Print logs verbose mode")
+	// fs.Parse(os.Args[0])
+	fs.Parse(os.Args[1:])
 	if *help {
-		flag.PrintDefaults()
+		fs.PrintDefaults()
 		os.Exit(0)
 		return
 	}
@@ -203,11 +209,17 @@ func main() {
 	rand.Seed(seedvalue)
 
 	var plmodel pathloss.OkumuraHata
+	_ = plmodel
 	// var plmodel walfisch.WalfischIke
 	// var plmodel pathloss.SimplePLModel
 	// var plmodel pathloss.RMa
+	var rma CM.RMa
+	// rma.Init(fGHz)
+	rma.Init(CarriersGHz[0])
+	rma.SetDMax(10000)
 
 	DeployLayer1(&singlecell)
+	_ = rma
 
 	// singlecell.SetAllNodeProperty("BS", "AntennaType", 0)
 	// singlecell.SetAllNodeProperty("UE", "AntennaType", 1)
@@ -257,8 +269,10 @@ func main() {
 	baseCells := vlib.VectorI{0, 1, 2}
 	baseCells = baseCells.Scale(nCells)
 
+	wsystem.OtherLossFn = penetrationLoss
+
 	for _, rxid := range rxids {
-		metric := wsystem.EvaluteLinkMetric(&singlecell, &plmodel, rxid, myfunc)
+		metric := wsystem.EvaluteLinkMetricV2(&singlecell, &rma, rxid, myfunc)
 		RxMetrics400[rxid] = metric
 	}
 
@@ -429,9 +443,17 @@ func DeployLayer1(system *deployment.DropSystem) {
 	vuelocations := LoadUELocationsV(system)
 	muelocations := LoadUELocations(system)
 
+	// Set Indoor & Outdoor
+
 	system.SetAllNodeLocation("UE", uelocations)
 	system.SetAllNodeLocation("VUE", vuelocations)
 	system.SetAllNodeLocation("MUE", muelocations)
+	system.SetAllNodeProperty("MUE", "Indoor", true)
+
+	// ueids := system.GetNodeIDs("MUE")
+	// for _, n := range ueids {
+	//
+	// }
 
 }
 
@@ -613,4 +635,18 @@ func EvaluateDIP(RxMetrics map[int]cell.LinkMetric, rxids vlib.VectorI, MAXINTER
 		MatlabResult[indx] = minfo
 	}
 	return MatlabResult
+}
+
+func penetrationLoss(tx, rx deployment.Node) float64 {
+	// var Out2IndoorLoss float64 = 13
+	// var RxNoiseFigure float64 = 7
+	var losses float64 = 0
+
+	if (rx.Indoor && !tx.Indoor) || (tx.Indoor && !rx.Indoor) {
+		losses += Out2IndoorLossDb
+	}
+
+	losses += NoiseFigureDb
+	return losses
+
 }

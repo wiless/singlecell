@@ -11,6 +11,9 @@ import (
 type AppConfig struct {
 	CellRadius float64
 	TxPowerDbm float64
+
+	Out2IndoorLossDb float64
+	NoiseFigureDb    float64
 }
 
 var C AppConfig
@@ -29,6 +32,8 @@ func ReadAppConfig() {
 	{
 		viper.SetDefault("TxPowerDbm", TxPowerDbm)
 		viper.SetDefault("CellRadius", CellRadius)
+		viper.SetDefault("Out2IndoorLossDb", Out2IndoorLossDb)
+		viper.SetDefault("NoiseFigureDb", NoiseFigureDb)
 	}
 	err = viper.Unmarshal(&C)
 	if err == nil {
@@ -38,6 +43,8 @@ func ReadAppConfig() {
 	// Load from the external configuration files
 	CellRadius = viper.GetFloat64("CellRadius")
 	TxPowerDbm = viper.GetFloat64("TxpowerDBm")
+	Out2IndoorLossDb = viper.GetFloat64("Out2IndoorLossDb")
+	NoiseFigureDb = viper.GetFloat64("NoiseFloorDb")
 
 	SwitchOutput()
 	vlib.SaveStructure(C, "OutputSetting.json", true)
