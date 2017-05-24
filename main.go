@@ -216,7 +216,7 @@ func main() {
 	var rma CM.RMa
 	// rma.Init(fGHz)
 	rma.Init(CarriersGHz[0])
-	rma.SetDMax(10000)
+	rma.SetDMax(21000)
 
 	DeployLayer1(&singlecell)
 	_ = rma
@@ -269,7 +269,7 @@ func main() {
 	baseCells := vlib.VectorI{0, 1, 2}
 	baseCells = baseCells.Scale(nCells)
 
-	wsystem.OtherLossFn = penetrationLoss
+	wsystem.OtherLossFn = penetrationLossFn
 
 	for _, rxid := range rxids {
 		metric := wsystem.EvaluteLinkMetricV2(&singlecell, &rma, rxid, myfunc)
@@ -282,10 +282,14 @@ func main() {
 		fid, _ := os.Create("uelocations.dat")
 		ueids := singlecell.GetNodeIDs(rxtypes...)
 		log.Println("RXid range : ", ueids[0], ueids[len(ueids)-1], len(ueids))
-		fmt.Fprintf(fid, "%% ID\tX\tY\tZ")
+		fmt.Fprintf(fid, "%% ID\tX\tY\tZ\tIndoor")
 		for _, id := range ueids {
 			node := singlecell.Nodes[id]
-			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f ", id, node.Location.X, node.Location.Y, node.Location.Z)
+			var ii int
+			if node.Indoor {
+				ii = 1
+			}
+			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f %v", id, node.Location.X, node.Location.Y, node.Location.Z, ii)
 
 		}
 		fid.Close()
@@ -402,7 +406,7 @@ func DeployLayer1(system *deployment.DropSystem) {
 			newnodetype.Mode = UEMode
 			setting.AddNodeType(newnodetype)
 
-			newnodetype = deployment.NodeType{Name: "MUE", Hmin: 1.1, Hmax: 1.1, Count: NMobileUEs * trueCells}
+			newnodetype = deployment.NodeType{Name: "MUE", Hmin: 1.5, Hmax: 1.5, Count: NMobileUEs * trueCells}
 			newnodetype.Mode = UEMode
 			setting.AddNodeType(newnodetype)
 
@@ -448,8 +452,21 @@ func DeployLayer1(system *deployment.DropSystem) {
 	system.SetAllNodeLocation("UE", uelocations)
 	system.SetAllNodeLocation("VUE", vuelocations)
 	system.SetAllNodeLocation("MUE", muelocations)
-	system.SetAllNodeProperty("MUE", "Indoor", true)
 
+	// Set 40% of the UEs with Indoor
+	ueids := system.GetNodeIDs("MUE")
+	INDOORRatio := .4
+	for _, u := range ueids {
+		if rand.Float64() <= INDOORRatio {
+			n := system.Nodes[u]
+			n.Indoor = true
+			system.Nodes[u] = n
+		}
+
+	}
+	// system.SetAllNodeProperty("MUE", "Indoor", true)
+
+	fmt.Println("Nof MUE ", len(muelocations))
 	// ueids := system.GetNodeIDs("MUE")
 	// for _, n := range ueids {
 	//
@@ -637,15 +654,14 @@ func EvaluateDIP(RxMetrics map[int]cell.LinkMetric, rxids vlib.VectorI, MAXINTER
 	return MatlabResult
 }
 
-func penetrationLoss(tx, rx deployment.Node) float64 {
+func penetrationLossFn(tx, rx deployment.Node) float64 {
 	// var Out2IndoorLoss float64 = 13
 	// var RxNoiseFigure float64 = 7
 	var losses float64 = 0
 
-	if (rx.Indoor && !tx.Indoor) || (tx.Indoor && !rx.Indoor) {
+	if rx.Indoor != tx.Indoor {
 		losses += Out2IndoorLossDb
 	}
-
 	losses += NoiseFigureDb
 	return losses
 
