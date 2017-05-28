@@ -18,7 +18,8 @@ type AppConfig struct {
 	INDOORRatio      float64
 	INCARRatio       float64
 	INCARLossdB      float64
-	ActiveCells      float64
+	ActiveCells      int
+	TrueCells        int // The number of cells where the UEs are dropped ..
 	AntennaVTilt     float64
 }
 
@@ -30,11 +31,14 @@ func (C *AppConfig) SetDefaults() {
 	C.INCARLossdB = 0
 	C.Out2IndoorLossDb = 0
 	C.ActiveCells = -1 // Default all the cells are active
+	C.TrueCells = -1
+	// C.TrueCells = -1   // Default to all the cells
 	// Do for others too
 }
 
 // ReadAppConfig reads all the configuration for the app
 func ReadAppConfig() {
+	C.SetDefaults()
 	log.Print("Reading APP config ")
 	viper.AddConfigPath(indir)
 	viper.SetConfigName("config")
@@ -53,6 +57,8 @@ func ReadAppConfig() {
 		viper.SetDefault("Out2IndoorLossDb", C.Out2IndoorLossDb)
 		viper.SetDefault("NoiseFigureDb", NoiseFigureDb)
 		viper.SetDefault("ActiveCells", C.ActiveCells)
+		viper.SetDefault("TrueCells", C.TrueCells)
+
 		CellRadius = ISD / math.Sqrt(3.0)
 		log.Print(C)
 	}
@@ -67,6 +73,7 @@ func ReadAppConfig() {
 	NoiseFigureDb = viper.GetFloat64("NoiseFloorDb")
 	CellRadius = ISD / math.Sqrt(3.0)
 	fmt.Print(C, NoiseFigureDb)
+
 	SaveAppConfig()
 
 }

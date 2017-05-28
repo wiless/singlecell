@@ -44,7 +44,8 @@ var secangles = vlib.VectorF{0.0, 120.0, -120.0}
 
 // var nUEPerCell = 1000
 var nCells = 19
-var trueCells = 19 // The number of cells where the UEs are dropped ..
+
+var trueCells int // The number of cells where the UEs are dropped ..
 
 var ISD float64 = 1732
 var CellRadius float64
@@ -188,6 +189,11 @@ func init() {
 
 	// vlib.LoadStructure("omni.json", defaultAAS)
 	ReadAppConfig()
+	if C.TrueCells == -1 {
+		C.TrueCells = nCells
+	}
+	trueCells = C.TrueCells
+
 	defaultAAS.VTiltAngle = C.AntennaVTilt
 
 	// vlib.SaveStructure(defaultAAS, "defaultAAS.json", true)
