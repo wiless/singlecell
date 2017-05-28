@@ -31,6 +31,7 @@ type MatInfo struct {
 	ThermalNoise       float64      `json:"thermalNoise"`
 	SINR               float64
 	RestOfInterference float64 `json:"restOfInterference"`
+	Distance           float64 `json:"Distance"`
 }
 
 var matlab *vlib.Matlab
@@ -41,17 +42,16 @@ var singlecell deployment.DropSystem
 var secangles = vlib.VectorF{0.0, 120.0, -120.0}
 
 // var nUEPerCell = 1000
-var nCells = 7
-var trueCells = 1
+var nCells = 19
+var trueCells = 19 // The number of cells where the UEs are dropped ..
 
-var CellRadius float64 = 1000.0
+var ISD float64 = 1732
+var CellRadius float64
 var TxPowerDbm float64 = 46.0
 var CarriersGHz = vlib.VectorF{0.7}
 var RXTYPES = []string{"MUE"}
 var VTILT float64 = 15.0
-
-var Out2IndoorLossDb float64 = 0
-var NoiseFigureDb float64 = 7 // Update it based on Uplink & Downlink accordingly
+var NoiseFigureDb float64 = 7.0 // Update it based on Uplink & Downlink accordingly
 
 var NVillages = 3
 var VillageRadius = 400.0
@@ -202,6 +202,7 @@ func main() {
 	SwitchBack()
 	matlab.Silent = true
 	matlab.Json = false
+	log.Print("the noise floor is ", NoiseFigureDb, C.NoiseFigureDb)
 
 	seedvalue := time.Now().Unix()
 	/// comment the below line to have different seed everytime
@@ -214,12 +215,13 @@ func main() {
 	// var plmodel pathloss.SimplePLModel
 	// var plmodel pathloss.RMa
 	var rma CM.RMa
-	// rma.Init(fGHz)
-	rma.Init(CarriersGHz[0])
-	rma.SetDMax(21000)
 
+	rma.Init(CarriersGHz[0])
+	rma.SetDMax(37000)
+	rma.ForceAllLOS(true)
+
+	// _ = rma
 	DeployLayer1(&singlecell)
-	_ = rma
 
 	// singlecell.SetAllNodeProperty("BS", "AntennaType", 0)
 	// singlecell.SetAllNodeProperty("UE", "AntennaType", 1)
@@ -267,12 +269,19 @@ func main() {
 	log.Println("Evaluating Link Gains for RXid range : ", rxids[0], rxids[len(rxids)-1], len(rxids))
 	RxMetrics400 := make(map[int]cell.LinkMetric)
 	baseCells := vlib.VectorI{0, 1, 2}
+	// baseCells := vlib.NewSegmentI(0, nCells*3) // 3 sectors per cell
 	baseCells = baseCells.Scale(nCells)
 
+	// baseCells = baseCells.Scale(trueCells)
 	wsystem.OtherLossFn = penetrationLossFn
-
+	if C.ActiveCells == 1 {
+		wsystem.ActiveCells = baseCells
+	}
+	// log.Println("ActivebaseCells ", baseCells)
 	for _, rxid := range rxids {
+
 		metric := wsystem.EvaluteLinkMetricV2(&singlecell, &rma, rxid, myfunc)
+		// metric := wsystem.EvaluteLinkMetric(&singlecell, &plmodel, rxid, myfunc)
 		RxMetrics400[rxid] = metric
 	}
 
@@ -282,14 +291,19 @@ func main() {
 		fid, _ := os.Create("uelocations.dat")
 		ueids := singlecell.GetNodeIDs(rxtypes...)
 		log.Println("RXid range : ", ueids[0], ueids[len(ueids)-1], len(ueids))
-		fmt.Fprintf(fid, "%% ID\tX\tY\tZ\tIndoor")
+		fmt.Fprintf(fid, "%% ID\tX\tY\tZ\tIndoor\tBSdist")
 		for _, id := range ueids {
 			node := singlecell.Nodes[id]
 			var ii int
 			if node.Indoor {
 				ii = 1
 			}
-			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f %v", id, node.Location.X, node.Location.Y, node.Location.Z, ii)
+			bestbs := RxMetrics400[id].BestRSRPNode
+
+			src := singlecell.Nodes[bestbs].Location
+			dist := src.DistanceFrom(node.Location)
+			// _ = ii
+			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f \t %v \t %v", id, node.Location.X, node.Location.Y, node.Location.Z, ii, dist)
 
 		}
 		fid.Close()
@@ -455,14 +469,22 @@ func DeployLayer1(system *deployment.DropSystem) {
 
 	// Set 40% of the UEs with Indoor
 	ueids := system.GetNodeIDs("MUE")
-	INDOORRatio := .4
-	for _, u := range ueids {
-		if rand.Float64() <= INDOORRatio {
-			n := system.Nodes[u]
-			n.Indoor = true
-			system.Nodes[u] = n
-		}
 
+	for _, u := range ueids {
+		n := system.Nodes[u]
+
+		if rand.Float64() <= C.INDOORRatio {
+			n.Indoor = true
+		} else {
+			n.Indoor = false
+			n.InCar = false
+			outdoorInCar := C.INCARRatio * (1.0 - C.INDOORRatio)
+			// Set INCARRatio of OUTDOOR as Incar
+			if rand.Float64() <= outdoorInCar {
+				n.InCar = true
+			}
+		}
+		system.Nodes[u] = n
 	}
 	// system.SetAllNodeProperty("MUE", "Indoor", true)
 
@@ -649,6 +671,11 @@ func EvaluateDIP(RxMetrics map[int]cell.LinkMetric, rxids vlib.VectorI, MAXINTER
 		minfo.SINR = metric.BestSINR
 		minfo.RestOfInterference = vlib.Db(vlib.Sum(residual))
 
+		src := singlecell.Nodes[minfo.BaseID].Location
+		dest := singlecell.Nodes[minfo.UserID].Location
+		dist := src.DistanceFrom(dest)
+		minfo.Distance = dist
+
 		MatlabResult[indx] = minfo
 	}
 	return MatlabResult
@@ -657,12 +684,19 @@ func EvaluateDIP(RxMetrics map[int]cell.LinkMetric, rxids vlib.VectorI, MAXINTER
 func penetrationLossFn(tx, rx deployment.Node) float64 {
 	// var Out2IndoorLoss float64 = 13
 	// var RxNoiseFigure float64 = 7
+	// log.Print(tx.ID, tx.Indoor, rx.ID, rx.Indoor, NoiseFigureDb)
 	var losses float64 = 0
 
 	if rx.Indoor != tx.Indoor {
-		losses += Out2IndoorLossDb
+		losses += C.Out2IndoorLossDb
 	}
-	losses += NoiseFigureDb
+
+	if rx.InCar {
+		losses += C.INCARLossdB
+	}
+
+	losses += C.NoiseFigureDb
+	// log.Print("After 2", losses)
 	return losses
 
 }

@@ -1,6 +1,11 @@
 {
-	"CellRadius": 4700,
-	"TxPowerDbm": 46,
+	"ISD": 6000,
+	"TxPowerDbm": 43,
+
+	"INDOORRatio": .4,
+	"INCARRatio": .2,
+	"INCARLossdB": 7.0,
 	"Out2IndoorLossDb": 13,
+"ActiveCells": 19,
 	"NoiseFigureDb": 7
 }

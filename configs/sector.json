@@ -6,10 +6,10 @@
 	"Nodes": 360,
 	"Omni": false,
 	"MfileName": "output.m",
-	"VTiltAngle": 15,
+	"VTiltAngle": 9,
 	"HTiltAngle": 0,
 	"BeamTilt": 0,
-	"DisableBeamTit": false,
+	"DisableBeamTit": true,
 	"HoldOn": false,
 	"VBeamWidth": 15,
 	"HBeamWidth": 65,
@@ -19,5 +19,5 @@
 	"AASArrayType": 0,
 	"CurveWidthInDegree": 30,
 	"CurveRadius": 1,
-	"GainDb": 10
+	"GainDb": 0
 }

@@ -3,6 +3,10 @@ table=load('table700MHz.dat');
 load uelocations.dat 
 load bslocations.dat
 % ISD=3200*2;
+if ~exist('ISD') 
+    disp('Set the value of ISD variable')
+    return
+end
 
 % 
  load antennalocations.dat
@@ -19,6 +23,7 @@ load bslocations.dat
 
 stable=sortrows(table,1);
 rows=length(stable);
+
 stable=[stable uelocations(1:rows,2) uelocations(1:rows,3) angle(uelocations(1:rows,2)+i*uelocations(1:rows,3))*180/pi];
  
 
@@ -53,7 +58,8 @@ nodecolortable=[uelocations(:,1) stable(:,2) uelocations(:,2:3) stable(:,8) ]; %
 % end
 
 
-syssinr=stable(:,8);
+% syssinr=stable(uelocations(:,6)>3500,8);
+syssinr=stable( : ,8);
 
 % % FILTER positive SINR users only
     % stable=stable(find(stable(:,8)>-3),:);
@@ -83,8 +89,10 @@ plot(antennalocations(:,1),antennalocations(:,2),'Or','MarkerSize',10)
 
 % stable=stable(1:500,:);
 bestbsid=stable(:,7);
-drawPolyGon(complex(bslocations(:,2),bslocations(:,3)),ISD/2);
-drawPolyGon(complex(antennalocations(:,1),antennalocations(:,2)),ISD/2,'b');
+sinrs=stable(:,8);
+distances=stable(:,9);
+drawPolyGon(complex(bslocations(:,2),bslocations(:,3)),ISD/sqrt(3));
+drawPolyGon(complex(antennalocations(:,1),antennalocations(:,2)),ISD/sqrt(3),'b',2);
 %  
 % clust1=20:37;
 % drawPolyGon(complex(bslocations(clust1,2),bslocations(clust1,3)),ISD/2,'g');
@@ -92,16 +100,16 @@ drawPolyGon(complex(antennalocations(:,1),antennalocations(:,2)),ISD/2,'b');
 
 nSectors=3; 
 nCells=size(bslocations,1)/nSectors;
-
+MAXSINR=90
 hold on;
 k=0:nCells-1;
-selectedUEs0=find((bestbsid>=k(1)).*(bestbsid<=k(end)));
+selectedUEs0=find((bestbsid>=k(1)).*(bestbsid<=k(end)).*(sinrs<MAXSINR));
 sec0ues=stable(selectedUEs0,10:11);
 k=k+nCells;
-selectedUEs1=find((bestbsid>=k(1)).*(bestbsid<=k(end)));
+selectedUEs1=find((bestbsid>=k(1)).*(bestbsid<=k(end)).*(sinrs<MAXSINR));
 sec1ues=stable(selectedUEs1,10:11);
 k=k+nCells;
-selectedUEs2=find((bestbsid>=k(1)).*(bestbsid<=k(end)));
+selectedUEs2=find((bestbsid>=k(1)).*(bestbsid<=k(end)).*(sinrs<MAXSINR));
 sec2ues=stable(selectedUEs2,10:11);
 
 
