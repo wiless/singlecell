@@ -128,3 +128,19 @@ h=plot(sec0ues(:,1),sec0ues(:,2),'r*');hold on
 grid on
 
 nodecolorplot
+
+
+figure(1)
+
+saveas(gcf,'SINR','fig')
+saveas(gcf,'SINR','jpg')
+
+figure(2)
+saveas(gcf,'AssociatedSector','fig')
+saveas(gcf,'AssociatedSector','jpg')
+
+figure(3)
+saveas(gcf,'SingleCellCoverage','fig')
+saveas(gcf,'SingleCellCoverage','jpg')
+
+

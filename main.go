@@ -655,7 +655,7 @@ func EvaluateDIP(RxMetrics map[int]cell.LinkMetric, rxids vlib.VectorI, MAXINTER
 			MAXINTER = len(metric.TxNodeIDs) - 1
 		}
 		// log.Println("METRIC TxNodes ", metric.TxNodeIDs)
-		minfo.IfStation = metric.TxNodeIDs[1:MAXINTER] // the first entry is best
+		minfo.IfStation = metric.TxNodeIDs[1 : MAXINTER+1] // the first entry is best
 		var ifrssi vlib.VectorF
 		ifrssi = metric.TxNodesRSRP[1:]
 
