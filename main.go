@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -178,12 +179,16 @@ func init() {
 
 	ReadConfig()
 	log.Println("Current indir & outdir ", indir, outdir)
-	ReadAppConfig()
 	//	vlib.LoadStructure("omni.json", &defaultAAS)
+
 	SwitchInput()
 	vlib.LoadStructure("sector.json", &defaultAAS)
+	C.AntennaVTilt = defaultAAS.VTiltAngle
 	SwitchBack()
+
 	// vlib.LoadStructure("omni.json", defaultAAS)
+	ReadAppConfig()
+	defaultAAS.VTiltAngle = C.AntennaVTilt
 
 	// vlib.SaveStructure(defaultAAS, "defaultAAS.json", true)
 
@@ -282,6 +287,7 @@ func main() {
 
 		metric := wsystem.EvaluteLinkMetricV2(&singlecell, &rma, rxid, myfunc)
 		// metric := wsystem.EvaluteLinkMetric(&singlecell, &plmodel, rxid, myfunc)
+
 		RxMetrics400[rxid] = metric
 	}
 
@@ -344,8 +350,8 @@ func main() {
 
 		fnameDIP = "DIPprofilesNORM"
 		MatlabResult := EvaluateDIP(RxMetrics400, rxids, MAXINTER, true) // Evaluates the normalized Dominant Interference Profiles
-		vlib.SaveStructure(MatlabResult, fnameDIP+".json", true)
 
+		vlib.SaveStructure(MatlabResult, fnameDIP+".json", true)
 		fnameDIP = "DIPprofiles"
 		MatlabResult = EvaluateDIP(RxMetrics400, rxids, MAXINTER, false) // Evaluates the normalized Dominant Interference Profiles
 		vlib.SaveStructure(MatlabResult, fnameDIP+".json", true)
@@ -356,6 +362,8 @@ func main() {
 	vlib.SaveStructure(RxMetrics400, fnameMetricName, true)
 	SwitchBack()
 	matlab.Close()
+
+	SaveAppConfig()
 	fmt.Println("\n ============================")
 
 }
@@ -669,13 +677,21 @@ func EvaluateDIP(RxMetrics map[int]cell.LinkMetric, rxids vlib.VectorI, MAXINTER
 			minfo.ThermalNoise -= metric.RSSI
 		}
 		minfo.SINR = metric.BestSINR
-		minfo.RestOfInterference = vlib.Db(vlib.Sum(residual))
+		if vlib.Sum(residual) > 0 {
+			minfo.RestOfInterference = vlib.Db(vlib.Sum(residual))
+		} else {
+			minfo.RestOfInterference = -999999
+		}
 
 		src := singlecell.Nodes[minfo.BaseID].Location
 		dest := singlecell.Nodes[minfo.UserID].Location
 		dist := src.DistanceFrom(dest)
 		minfo.Distance = dist
-
+		//// test Inf
+		_, err := json.Marshal(minfo)
+		if err != nil {
+			fmt.Printf("\nError %v \n UID %#v , ROI %v", err, minfo, vlib.Sum(residual))
+		}
 		MatlabResult[indx] = minfo
 	}
 	return MatlabResult

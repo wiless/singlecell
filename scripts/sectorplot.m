@@ -1,4 +1,10 @@
 close all
+
+cfg=loadjson('OutputSetting.json');
+
+ISD=cfg.ISD;
+
+
 table=load('table700MHz.dat');
 load uelocations.dat 
 load bslocations.dat

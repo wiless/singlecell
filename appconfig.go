@@ -19,6 +19,7 @@ type AppConfig struct {
 	INCARRatio       float64
 	INCARLossdB      float64
 	ActiveCells      float64
+	AntennaVTilt     float64
 }
 
 var C AppConfig
@@ -66,7 +67,11 @@ func ReadAppConfig() {
 	NoiseFigureDb = viper.GetFloat64("NoiseFloorDb")
 	CellRadius = ISD / math.Sqrt(3.0)
 	fmt.Print(C, NoiseFigureDb)
+	SaveAppConfig()
 
+}
+
+func SaveAppConfig() {
 	SwitchOutput()
 	vlib.SaveStructure(C, "OutputSetting.json", true)
 	SwitchBack()

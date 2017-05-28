@@ -1,11 +1,11 @@
 {
-	"ISD": 6000,
-	"TxPowerDbm": 43,
-
-	"INDOORRatio": .4,
-	"INCARRatio": .2,
-	"INCARLossdB": 7.0,
+	"ISD": 8000,
+	"TxPowerDbm": 23,
 	"Out2IndoorLossDb": 13,
-"ActiveCells": 19,
-	"NoiseFigureDb": 7
+	"NoiseFigureDb": 7,
+	"INDOORRatio": 0.4,
+	"INCARRatio": 0.2,
+	"INCARLossdB": 7,
+	"ActiveCells": 1,
+	"AntennaVTilt": 10
 }
