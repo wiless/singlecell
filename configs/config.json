@@ -1,12 +1,12 @@
 {
-	"ISD": 6000,
-	"TxPowerDbm": 23,
+	"ISD": 8000,
+	"TxPowerDbm": 43,
 	"Out2IndoorLossDb": 13,
 	"NoiseFigureDb": 7,
 	"INDOORRatio": 0.4,
 	"INCARRatio": 0.2,
 	"INCARLossdB": 7,
-	"ActiveCells": 1,
-	"TrueCells":1,   
-	"AntennaVTilt": 8
- }
+	"ActiveCells": 19,
+	"TrueCells":1,
+	"AntennaVTilt": 10
+}

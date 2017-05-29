@@ -91,14 +91,14 @@ figure(2)
 
 plot(bslocations(:,2),bslocations(:,3),'*k','MarkerSize',10)
 hold on;
-plot(antennalocations(:,1),antennalocations(:,2),'Or','MarkerSize',10) 
+% plot(antennalocations(:,1),antennalocations(:,2),'Or','MarkerSize',10) 
 
 % stable=stable(1:500,:);
 bestbsid=stable(:,7);
 sinrs=stable(:,8);
 distances=stable(:,9);
 drawPolyGon(complex(bslocations(:,2),bslocations(:,3)),ISD/sqrt(3));
-drawPolyGon(complex(antennalocations(:,1),antennalocations(:,2)),ISD/sqrt(3),'b',2);
+% drawPolyGon(complex(antennalocations(:,1),antennalocations(:,2)),ISD/sqrt(3),'b',2);
 %  
 % clust1=20:37;
 % drawPolyGon(complex(bslocations(clust1,2),bslocations(clust1,3)),ISD/2,'g');
@@ -131,16 +131,16 @@ nodecolorplot
 
 
 figure(1)
+fname=sprintf('SINR_%.0f_%.0f',cfg.ISD,cfg.AntennaVTilt);
+saveas(gcf,fname,'fig')
+saveas(gcf,fname,'jpg')
 
-saveas(gcf,'SINR','fig')
-saveas(gcf,'SINR','jpg')
-
-figure(2)
-saveas(gcf,'AssociatedSector','fig')
-saveas(gcf,'AssociatedSector','jpg')
+%figure(2)
+%saveas(gcf,'AssociatedSector','fig')
+%saveas(gcf,'AssociatedSector','jpg')
 
 figure(3)
 saveas(gcf,'SingleCellCoverage','fig')
-saveas(gcf,'SingleCellCoverage','jpg')
+%saveas(gcf,'SingleCellCoverage','jpg')
 
 

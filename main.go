@@ -228,7 +228,10 @@ func main() {
 	var rma CM.RMa
 
 	rma.Init(CarriersGHz[0])
-	rma.SetDMax(37000)
+	// rma.SetDMax(37000)
+	// rma.Extended = true
+	rma.SetDMax(21000)
+	// rma.SetNLosDMax(5000)
 	rma.ForceAllLOS(true)
 
 	// _ = rma
@@ -291,7 +294,7 @@ func main() {
 	// log.Println("ActivebaseCells ", baseCells)
 	for _, rxid := range rxids {
 
-		metric := wsystem.EvaluteLinkMetricV2(&singlecell, &rma, rxid, myfunc)
+		metric := wsystem.EvaluateLinkMetricV2(&singlecell, &rma, rxid, myfunc)
 		// metric := wsystem.EvaluteLinkMetric(&singlecell, &plmodel, rxid, myfunc)
 
 		RxMetrics400[rxid] = metric
@@ -303,19 +306,23 @@ func main() {
 		fid, _ := os.Create("uelocations.dat")
 		ueids := singlecell.GetNodeIDs(rxtypes...)
 		log.Println("RXid range : ", ueids[0], ueids[len(ueids)-1], len(ueids))
-		fmt.Fprintf(fid, "%% ID\tX\tY\tZ\tIndoor\tBSdist")
+		fmt.Fprintf(fid, "%% ID\tX\tY\tZ\tIndoor\tInCar\tBSdist")
 		for _, id := range ueids {
 			node := singlecell.Nodes[id]
 			var ii int
+			var ic int
 			if node.Indoor {
 				ii = 1
+
+			}
+			if node.InCar {
+				ic = 1
 			}
 			bestbs := RxMetrics400[id].BestRSRPNode
-
 			src := singlecell.Nodes[bestbs].Location
 			dist := src.DistanceFrom(node.Location)
 			// _ = ii
-			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f \t %v \t %v", id, node.Location.X, node.Location.Y, node.Location.Z, ii, dist)
+			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f \t %v \t %v", id, node.Location.X, node.Location.Y, node.Location.Z, ii, ic, dist)
 
 		}
 		fid.Close()
@@ -460,10 +467,13 @@ func DeployLayer1(system *deployment.DropSystem) {
 	// deployment.DropSetting.SetCoverage(area)
 
 	// clocations := deployment.HexGrid(nCells, vlib.Origin3D, CellRadius, 30)
-	clocations, _ := deployment.HexWrapGrid(nCells, vlib.Origin3D, CellRadius, 30, 19)
-	system.SetAllNodeLocation("BS0", vlib.Location3DtoVecC(clocations))
-	system.SetAllNodeLocation("BS1", vlib.Location3DtoVecC(clocations))
-	system.SetAllNodeLocation("BS2", vlib.Location3DtoVecC(clocations))
+	clocations, vcells := deployment.HexWrapGrid(19, vlib.Origin3D, CellRadius, 30, 19)
+
+	fmt.Printf("Locations %v\n vCELLS= %v", clocations, vcells)
+
+	system.SetAllNodeLocation("BS0", vlib.Location3DtoVecC(clocations[0:19]))
+	system.SetAllNodeLocation("BS1", vlib.Location3DtoVecC(clocations[0:19]))
+	system.SetAllNodeLocation("BS2", vlib.Location3DtoVecC(clocations[0:19]))
 
 	// CASE A1 & A2
 	// uelocations := LoadUELocations(system)
