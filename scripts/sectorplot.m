@@ -73,7 +73,7 @@ syssinr=stable( : ,8);
 
 figure(1) 
 
-cdfplot(syssinr)
+% cdfplot(syssinr)
 figure(2)
 % [Nrows Ncols]=size(stable);
 % NUEsPerCell=100;
@@ -118,11 +118,11 @@ k=k+nCells;
 selectedUEs2=find((bestbsid>=k(1)).*(bestbsid<=k(end)).*(sinrs<MAXSINR));
 sec2ues=stable(selectedUEs2,10:11);
 
-
+ 
 h=plot(sec0ues(:,1),sec0ues(:,2),'r*');hold on
  plot(sec1ues(:,1),sec1ues(:,2),'k*');hold on
  plot(sec2ues(:,1),sec2ues(:,2),'b*');hold on
- legend 'sec0','sec1','sec2'
+ legend ('sec0','sec1','sec2')
 
 
 grid on

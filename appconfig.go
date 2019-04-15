@@ -21,6 +21,7 @@ type AppConfig struct {
 	ActiveCells      int
 	TrueCells        int // The number of cells where the UEs are dropped ..
 	AntennaVTilt     float64
+	Extended         bool
 }
 
 var C AppConfig
@@ -32,6 +33,7 @@ func (C *AppConfig) SetDefaults() {
 	C.Out2IndoorLossDb = 0
 	C.ActiveCells = -1 // Default all the cells are active
 	C.TrueCells = -1
+	C.Extended = false
 	// C.TrueCells = -1   // Default to all the cells
 	// Do for others too
 }
@@ -71,6 +73,7 @@ func ReadAppConfig() {
 	ISD = viper.GetFloat64("ISD")
 	TxPowerDbm = viper.GetFloat64("TxpowerDBm")
 	NoiseFigureDb = viper.GetFloat64("NoiseFloorDb")
+	NMobileUEs = viper.GetInt("NumUEperCell")
 	CellRadius = ISD / math.Sqrt(3.0)
 	fmt.Print(C, NoiseFigureDb)
 

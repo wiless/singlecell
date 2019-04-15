@@ -1,6 +1,6 @@
 {
-	"ISD": 8000,
-	"TxPowerDbm": 43,
+	"ISD": 6000,
+	"TxPowerDbm": 46,
 	"Out2IndoorLossDb": 13,
 	"NoiseFigureDb": 7,
 	"INDOORRatio": 0.4,
@@ -8,5 +8,7 @@
 	"INCARLossdB": 7,
 	"ActiveCells": 19,
 	"TrueCells":1,
-	"AntennaVTilt": 10
+	"AntennaVTilt": 8,
+	"NumUEperCell":120,
+	"Extended":true
 }
