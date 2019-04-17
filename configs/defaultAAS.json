@@ -5,8 +5,8 @@
 	"N": 1,
 	"Nodes": 360,
 	"Omni": false,
-	"MfileName": "output.m",
-	"VTiltAngle": 15,
+	"MfileName": "antenna.m",
+	"VTiltAngle": 4,
 	"HTiltAngle": 0,
 	"BeamTilt": 0,
 	"DisableBeamTit": false,
@@ -24,5 +24,5 @@
 	"AASArrayType": 0,
 	"CurveWidthInDegree": 30,
 	"CurveRadius": 1,
-	"GainDb": 10
+	"GainDb": 8
 }

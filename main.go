@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
+	"strings"
+
+	log "github.com/Sirupsen/logrus"
+
 	"math"
 	"math/rand"
 	"os"
@@ -33,18 +36,17 @@ var ISD float64 = 1732
 var CellRadius float64
 var TxPowerDbm float64 = 46.0
 var CarriersGHz = vlib.VectorF{0.7}
-var RXTYPES = []string{"MUE"}
+var RXTYPES = []string{"UE"}
 var VTILT float64 = 15.0
-var NoiseFigureDb float64 = 7.0 // Update it based on Uplink & Downlink accordingly
 
 var NMobileUEs = 10 // 100
-
 var fnameSINRTable string
 var fnameMetricName string
 var outdir string
 var indir string
 var defaultdir string
 var currentdir string
+var rma CM.RMa
 
 func init() {
 
@@ -93,13 +95,13 @@ func init() {
 }
 
 func main() {
-
+	// log.SetLevel(log.InfoLevel)
 	SwitchOutput()
 	matlab = vlib.NewMatlab("deployment")
 	SwitchBack()
 	matlab.Silent = true
 	matlab.Json = false
-	log.Print("the noise floor is ", NoiseFigureDb, C.NoiseFigureDb)
+	log.Print("BS,UE NoiseFigure :", C.BSNoiseFigureDb, C.UENoiseFigureDb)
 
 	seedvalue := time.Now().Unix()
 	/// comment the below line to have different seed everytime
@@ -112,8 +114,13 @@ func main() {
 	// // var plmodel walfisch.WalfischIke
 	// // var plmodel pathloss.SimplePLModel
 	// // var plmodel pathloss.RMa
-	var rma CM.RMa
+
 	rma.LoadIMT2020(CarriersGHz[0])
+
+	if C.ForceAllLOS {
+		rma.ForceAllLOS(true)
+
+	}
 
 	DeployLayer1(&singlecell)
 
@@ -126,11 +133,8 @@ func main() {
 	for _, uetype := range rxnodeTypes {
 		singlecell.SetAllNodeProperty(uetype, "FreqGHz", CarriersGHz)
 	}
-	// CASE A1 & A2
-	// CASE B1 & B2
 
 	layerBS := []string{"BS0", "BS1", "BS2"}
-	// layer2BS := []string{"OBS0", "OBS1", "OBS2"}
 
 	var bsids vlib.VectorI
 
@@ -155,7 +159,7 @@ func main() {
 	/// DUMPING OUTPUT Databases
 
 	wsystem := cell.NewWSystem()
-	wsystem.BandwidthMHz = 20
+	wsystem.BandwidthMHz = C.BandwidthMHz
 	wsystem.FrequencyGHz = CarriersGHz[0]
 
 	rxids := singlecell.GetNodeIDs(rxtypes...)
@@ -168,6 +172,7 @@ func main() {
 
 	// baseCells = baseCells.Scale(trueCells)
 	wsystem.OtherLossFn = penetrationLossFn
+
 	if C.ActiveCells == 1 {
 		wsystem.ActiveCells = baseCells
 	}
@@ -202,7 +207,7 @@ func main() {
 			src := singlecell.Nodes[bestbs].Location
 			dist := src.DistanceFrom(node.Location)
 			// _ = ii
-			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f \t %v \t %v", id, node.Location.X, node.Location.Y, node.Location.Z, ii, ic, dist)
+			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f \t %d \t %d \t %f", id, node.Location.X, node.Location.Y, node.Location.Z, ii, ic, dist)
 
 		}
 		fid.Close()
@@ -287,41 +292,9 @@ func DeployLayer1(system *deployment.DropSystem) {
 			newnodetype.Mode = BSMode
 			setting.AddNodeType(newnodetype)
 
-			// newnodetype = deployment.NodeType{Name: "OBS0", Hmin: 30.0, Hmax: 30.0, Count: nCells}
-			// newnodetype.Mode = deployment.TransmitOnly
-			// setting.AddNodeType(newnodetype)
-
-			// newnodetype = deployment.NodeType{Name: "OBS1", Hmin: 30.0, Hmax: 30.0, Count: nCells}
-			// newnodetype.Mode = deployment.TransmitOnly
-			// setting.AddNodeType(newnodetype)
-
-			// newnodetype = deployment.NodeType{Name: "OBS2", Hmin: 30.0, Hmax: 30.0, Count: nCells}
-			// newnodetype.Mode = deployment.TransmitOnly
-			// setting.AddNodeType(newnodetype)
-
-			/// NodeType should come from API calls
-
-			/// ALL NODES considered
-			// newnodetype = deployment.NodeType{Name: "UE", Hmin: 1.1, Hmax: 1.1, Count: nUEPerCell * nCells}
-			// newnodetype.Mode = deployment.ReceiveOnly
-			// setting.AddNodeType(newnodetype)
-
-			/// CASE A1 & A2
-			// newnodetype = deployment.NodeType{Name: "UE", Hmin: 1.1, Hmax: 1.1, Count: nUEPerCell * nCells}
-			// newnodetype.Mode = deployment.ReceiveOnly
-			// setting.AddNodeType(newnodetype)
-
-			/// CASE B1 & B2
 			UEMode := deployment.ReceiveOnly
-			// newnodetype = deployment.NodeType{Name: "UE", Hmin: 1.1, Hmax: 1.1, Count: GPusers * trueCells}
-			// newnodetype.Mode = UEMode
-			// setting.AddNodeType(newnodetype)
 
-			// newnodetype = deployment.NodeType{Name: "VUE", Hmin: 1.1, Hmax: 1.1, Count: NUEsPerVillage * NVillages * trueCells}
-			// newnodetype.Mode = UEMode
-			// setting.AddNodeType(newnodetype)
-
-			newnodetype = deployment.NodeType{Name: "MUE", Hmin: 1.5, Hmax: 1.5, Count: NMobileUEs * trueCells}
+			newnodetype = deployment.NodeType{Name: "UE", Hmin: 1.5, Hmax: 1.5, Count: NMobileUEs * trueCells}
 			newnodetype.Mode = UEMode
 			setting.AddNodeType(newnodetype)
 
@@ -349,30 +322,19 @@ func DeployLayer1(system *deployment.DropSystem) {
 	// clocations := deployment.HexGrid(nCells, vlib.Origin3D, CellRadius, 30)
 	clocations, vcells := deployment.HexWrapGrid(19, vlib.Origin3D, CellRadius, 30, 19)
 
-	fmt.Printf("Locations %v\n vCELLS= %v", clocations, vcells)
+	log.Infof("BS=[%v]", clocations, vcells)
+	log.Infof("vCells=[%v]", vcells)
 
 	system.SetAllNodeLocation("BS0", vlib.Location3DtoVecC(clocations[0:19]))
 	system.SetAllNodeLocation("BS1", vlib.Location3DtoVecC(clocations[0:19]))
 	system.SetAllNodeLocation("BS2", vlib.Location3DtoVecC(clocations[0:19]))
 
-	// CASE A1 & A2
-	// uelocations := LoadUELocations(system)
-	// system.SetAllNodeLocation("UE", uelocations)
-
-	// CASE B1 & B2
-	// Workaround else should come from API calls or Databases
-	// uelocations := LoadUELocationsGP(system)
-	// vuelocations := LoadUELocationsV(system)
 	muelocations := LoadUELocations(system)
 
-	// Set Indoor & Outdoor
-
-	// system.SetAllNodeLocation("UE", uelocations)
-	// system.SetAllNodeLocation("VUE", vuelocations)
-	system.SetAllNodeLocation("MUE", muelocations)
+	system.SetAllNodeLocation("UE", muelocations)
 
 	// Set 40% of the UEs with Indoor
-	ueids := system.GetNodeIDs("MUE")
+	ueids := system.GetNodeIDs("UE")
 
 	for _, u := range ueids {
 		n := system.Nodes[u]
@@ -390,10 +352,10 @@ func DeployLayer1(system *deployment.DropSystem) {
 		}
 		system.Nodes[u] = n
 	}
-	// system.SetAllNodeProperty("MUE", "Indoor", true)
+	// system.SetAllNodeProperty("UE", "Indoor", true)
 
 	fmt.Println("Nof MUE ", len(muelocations))
-	// ueids := system.GetNodeIDs("MUE")
+	// ueids := system.GetNodeIDs("UE")
 	// for _, n := range ueids {
 	//
 	// }
@@ -485,6 +447,7 @@ func EvaluateDIP(RxMetrics map[int]cell.LinkMetric, rxids vlib.VectorI, MAXINTER
 		MatlabResult[indx] = minfo
 	}
 	return MatlabResult
+
 }
 
 func penetrationLossFn(tx, rx deployment.Node) float64 {
@@ -494,15 +457,24 @@ func penetrationLossFn(tx, rx deployment.Node) float64 {
 	var losses float64 = 0
 
 	if rx.Indoor != tx.Indoor {
-		losses += C.Out2IndoorLossDb
+		// losses += C.Out2IndoorLossDb // Using model based value
+		d2In := rand.Float64() * 10.0 // Uniform [0 to 10m]
+		losses += rma.O2ILossDb(rma.FGHz(), d2In)
+
 	}
 
 	if rx.InCar {
-		losses += C.INCARLossdB
+		losses += CM.O2ICarLossDb() //C.INCARLossdB
 	}
 
-	losses += C.NoiseFigureDb
-	// log.Print("After 2", losses)
+	if strings.Contains(rx.Type, "UE") {
+		losses += C.UENoiseFigureDb
+	}
+
+	if strings.Contains(rx.Type, "BS") {
+		losses += C.BSNoiseFigureDb
+	}
+
 	return losses
 
 }

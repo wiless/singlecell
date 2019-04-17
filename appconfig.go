@@ -14,17 +14,21 @@ type AppConfig struct {
 	ISD              float64
 	TxPowerDbm       float64
 	Out2IndoorLossDb float64
-	NoiseFigureDb    float64
-	INDOORRatio      float64
-	INCARRatio       float64
-	INCARLossdB      float64
-	ActiveCells      int
-	TrueCells        int // The number of cells where the UEs are dropped ..
-	AntennaVTilt     float64
-	Extended         bool
+
+	UENoiseFigureDb float64
+	BSNoiseFigureDb float64
+	INDOORRatio     float64
+	INCARRatio      float64
+	INCARLossdB     float64
+	ActiveCells     int
+	TrueCells       int // The number of cells where the UEs are dropped ..
+	AntennaVTilt    float64
+	Extended        bool
+	ForceAllLOS     bool
+	BandwidthMHz    float64
 }
 
-var C AppConfig
+var C AppConfig // Global Configuration variable
 
 func (C *AppConfig) SetDefaults() {
 	C.INDOORRatio = 0
@@ -34,6 +38,10 @@ func (C *AppConfig) SetDefaults() {
 	C.ActiveCells = -1 // Default all the cells are active
 	C.TrueCells = -1
 	C.Extended = false
+	C.ForceAllLOS = false
+	C.BandwidthMHz = 10
+	C.UENoiseFigureDb = 7
+	C.BSNoiseFigureDb = 5
 	// C.TrueCells = -1   // Default to all the cells
 	// Do for others too
 }
@@ -57,10 +65,12 @@ func ReadAppConfig() {
 		viper.SetDefault("INCARRatio", C.INCARRatio)
 		viper.SetDefault("INCARLossdB", C.INCARLossdB)
 		viper.SetDefault("Out2IndoorLossDb", C.Out2IndoorLossDb)
-		viper.SetDefault("NoiseFigureDb", NoiseFigureDb)
+		viper.SetDefault("UENoiseFigureDb", C.UENoiseFigureDb)
+		viper.SetDefault("BSNoiseFigureDb", C.BSNoiseFigureDb)
+
 		viper.SetDefault("ActiveCells", C.ActiveCells)
 		viper.SetDefault("TrueCells", C.TrueCells)
-
+		viper.SetDefault("ForceAllLOS", C.ForceAllLOS)
 		CellRadius = ISD / math.Sqrt(3.0)
 		log.Print(C)
 	}
@@ -72,10 +82,10 @@ func ReadAppConfig() {
 	// Load from the external configuration files
 	ISD = viper.GetFloat64("ISD")
 	TxPowerDbm = viper.GetFloat64("TxpowerDBm")
-	NoiseFigureDb = viper.GetFloat64("NoiseFloorDb")
 	NMobileUEs = viper.GetInt("NumUEperCell")
+
 	CellRadius = ISD / math.Sqrt(3.0)
-	fmt.Print(C, NoiseFigureDb)
+	fmt.Print(C)
 
 	SaveAppConfig()
 

@@ -1,14 +1,17 @@
 {
 	"ISD": 6000,
 	"TxPowerDbm": 46,
-	"Out2IndoorLossDb": 13,
-	"NoiseFigureDb": 7,
+	"Out2IndoorLossDb": 10,
+	"UENoiseFigureDb": 7,
+	"BSNoiseFigureDb":5,
 	"INDOORRatio": 0.4,
 	"INCARRatio": 0.2,
-	"INCARLossdB": 7,
+	"INCARLossdB": 10,
 	"ActiveCells": 19,
 	"TrueCells":1,
-	"AntennaVTilt": 8,
-	"NumUEperCell":120,
+	"AntennaVTilt": 12,
+	"NumUEperCell":1000,
+	"ForceAllLOS":false,
+	"BandwidthMHz":10,
 	"Extended":true
 }
