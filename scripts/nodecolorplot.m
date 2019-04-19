@@ -7,7 +7,8 @@ frequency= unique(nodeinfo(:,2))';
 for f=frequency
 nodeinfoTable=nodeinfo(find(nodeinfo(:,2)==f),:);
 
-filtered=find(nodeinfoTable(:,col)>-6);
+% filtered=1:length(nodeinfoTable)
+ filtered=find(nodeinfoTable(:,col)>-7);
 % filtered=find(nodeinfoTable(:,col)>-5);
 % filtered=find(uelocations(:,6)<3500);
 

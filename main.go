@@ -1,17 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"strings"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 
-	"math"
 	"math/rand"
 	"os"
-	"time"
 
 	"github.com/namsral/flag"
 	cell "github.com/wiless/cellular"
@@ -23,7 +21,6 @@ import (
 
 var defaultAAS antenna.SettingAAS
 var systemAntennas map[int]*antenna.SettingAAS
-
 var singlecell deployment.DropSystem
 var secangles = vlib.VectorF{0.0, 120.0, -120.0}
 
@@ -37,7 +34,6 @@ var CellRadius float64
 var TxPowerDbm float64 = 46.0
 var CarriersGHz = vlib.VectorF{0.7}
 var RXTYPES = []string{"UE"}
-var VTILT float64 = 15.0
 
 var NMobileUEs = 10 // 100
 var fnameSINRTable string
@@ -95,7 +91,11 @@ func init() {
 }
 
 func main() {
-	// log.SetLevel(log.InfoLevel)
+
+	if C.LogInfo == true {
+		log.SetLevel(log.InfoLevel)
+	}
+	NMobileUEs = C.NumUEperCell
 	SwitchOutput()
 	matlab = vlib.NewMatlab("deployment")
 	SwitchBack()
@@ -105,7 +105,7 @@ func main() {
 
 	seedvalue := time.Now().Unix()
 	/// comment the below line to have different seed everytime
-	// seedvalue = 0
+	seedvalue = 0
 	_ = seedvalue
 	// rand.Seed(seedvalue)
 
@@ -121,7 +121,7 @@ func main() {
 		rma.ForceAllLOS(true)
 
 	}
-
+	rma.ShadowLoss = C.ShadowLoss
 	DeployLayer1(&singlecell)
 
 	// singlecell.SetAllNodeProperty("BS", "AntennaType", 0)
@@ -178,12 +178,12 @@ func main() {
 	}
 	// log.Println("ActivebaseCells ", baseCells)
 	for _, rxid := range rxids {
-
-		metric := wsystem.EvaluateLinkMetricV2(&singlecell, &rma, rxid, myfunc)
+		metric := wsystem.EvaluateLinkMetricV2(&singlecell, &rma, rxid, antennaSelector)
 		// metric := wsystem.EvaluteLinkMetric(&singlecell, &plmodel, rxid, myfunc)
-
 		RxMetrics400[rxid] = metric
 	}
+
+	PrintCalibration(RxMetrics400, rxids, "calibration.dat")
 
 	SwitchOutput()
 	{ // Dump UE locations
@@ -208,7 +208,7 @@ func main() {
 			dist := src.DistanceFrom(node.Location)
 			// _ = ii
 			fmt.Fprintf(fid, "\n %d \t %f \t %f \t %f \t %d \t %d \t %f", id, node.Location.X, node.Location.Y, node.Location.Z, ii, ic, dist)
-
+			// couplingGain[indx] = RxMetrics400[id].BestRSRP
 		}
 		fid.Close()
 
@@ -230,7 +230,7 @@ func main() {
 		fid, _ := os.Create("antennalocations.dat")
 		fmt.Fprintf(fid, "%% ID\tX\tY\tZ\tHDirection\tHWidth\tVTilt")
 		for _, id := range bsids {
-			ant := myfunc(id)
+			ant := antennaSelector(id)
 			// if id%7 == 0 {
 			// 	node.TxPowerDBm = 0
 			// } else {
@@ -277,7 +277,8 @@ func DeployLayer1(system *deployment.DropSystem) {
 		GENERATE := true
 		if GENERATE {
 
-			BSHEIGHT := 35.0
+			BSHEIGHT := C.BSHeight
+			UEHeight := C.UEHeight
 			BSMode := deployment.TransmitOnly
 			/// NodeType should come from API calls
 			newnodetype := deployment.NodeType{Name: "BS0", Hmin: BSHEIGHT, Hmax: BSHEIGHT, Count: nCells}
@@ -294,7 +295,7 @@ func DeployLayer1(system *deployment.DropSystem) {
 
 			UEMode := deployment.ReceiveOnly
 
-			newnodetype = deployment.NodeType{Name: "UE", Hmin: 1.5, Hmax: 1.5, Count: NMobileUEs * trueCells}
+			newnodetype = deployment.NodeType{Name: "UE", Hmin: UEHeight, Hmax: UEHeight, Count: NMobileUEs * trueCells}
 			newnodetype.Mode = UEMode
 			setting.AddNodeType(newnodetype)
 
@@ -321,9 +322,9 @@ func DeployLayer1(system *deployment.DropSystem) {
 
 	// clocations := deployment.HexGrid(nCells, vlib.Origin3D, CellRadius, 30)
 	clocations, vcells := deployment.HexWrapGrid(19, vlib.Origin3D, CellRadius, 30, 19)
-
-	log.Infof("BS=[%v]", clocations, vcells)
-	log.Infof("vCells=[%v]", vcells)
+	_ = vcells
+	// log.Infof("BS=[%v]", clocations)
+	// log.Infof("vCells=[%v]", vcells)
 
 	system.SetAllNodeLocation("BS0", vlib.Location3DtoVecC(clocations[0:19]))
 	system.SetAllNodeLocation("BS1", vlib.Location3DtoVecC(clocations[0:19]))
@@ -344,7 +345,7 @@ func DeployLayer1(system *deployment.DropSystem) {
 		} else {
 			n.Indoor = false
 			n.InCar = false
-			outdoorInCar := C.INCARRatio * (1.0 - C.INDOORRatio)
+			outdoorInCar := ((1.0 - C.INDOORRatio) / C.INCARRatio) / 10.0
 			// Set INCARRatio of OUTDOOR as Incar
 			if rand.Float64() <= outdoorInCar {
 				n.InCar = true
@@ -370,6 +371,9 @@ func LoadUELocations(system *deployment.DropSystem) vlib.VectorC {
 		log.Printf("Dropping Uniform %d UEs for cell %d", NMobileUEs, indx)
 
 		ulocation := deployment.HexRandU(bsloc.Cmplx(), CellRadius, NMobileUEs, 30)
+		// ulocation := deployment.CircularPoints(bsloc.Cmplx(), CellRadius, NMobileUEs)
+		// ulocation := deployment.AnnularRingEqPoints(bsloc.Cmplx(), CellRadius/3, NMobileUEs)
+		// ulocation := deployment.AnnularRingPoints(bsloc.Cmplx(), CellRadius/4, CellRadius*2/3, NMobileUEs)
 		// for i, v := range ulocation {
 		// 	ulocation[i] = v + bsloc.Cmplx()
 		// }
@@ -379,89 +383,24 @@ func LoadUELocations(system *deployment.DropSystem) vlib.VectorC {
 
 }
 
-func myfunc(nodeID int) antenna.SettingAAS {
+func antennaSelector(nodeID int) antenna.SettingAAS {
 	// atype := singlecell.Nodes[txnodeID]
 	/// all nodeid same antenna
 	obj, ok := systemAntennas[nodeID]
 	if !ok {
-		log.Printf("No antenna created !! for %d ", nodeID)
+		log.Panicln("No antenna created !! for %d ", nodeID)
 		return defaultAAS
 	} else {
-		// fmt.Printf("\nNode %d , Omni= %v, Dirction=(H%v,V%v) and center is %v", nodeID, obj.Omni, obj.HTiltAngle, obj.VTiltAngle, obj.Centre)
+		// fmt.Printf("\nNode %d , Omni= %v, Direction=(H%v,V%v) and center is %v", nodeID, obj.Omni, obj.HTiltAngle, obj.VTiltAngle, obj.Centre)
 		return *obj
 	}
-}
-
-func EvaluateDIP(RxMetrics map[int]cell.LinkMetric, rxids vlib.VectorI, MAXINTER int, DONORM bool) []MatInfo {
-
-	MatlabResult := make([]MatInfo, len(rxids))
-
-	for indx, rxid := range rxids {
-		metric := RxMetrics[rxid]
-		var minfo MatInfo
-		minfo.UserID = metric.RxNodeID
-		minfo.SecID = int(math.Floor(float64(metric.BestRSRPNode) / float64(nCells)))
-		minfo.BaseID = metric.BestRSRPNode
-
-		if metric.TxNodeIDs.Size() < MAXINTER {
-			MAXINTER = len(metric.TxNodeIDs) - 1
-		}
-		// log.Println("METRIC TxNodes ", metric.TxNodeIDs)
-		minfo.IfStation = metric.TxNodeIDs[1 : MAXINTER+1] // the first entry is best
-		var ifrssi vlib.VectorF
-		ifrssi = metric.TxNodesRSRP[1:]
-
-		if DONORM {
-			minfo.RSSI = 0 // normalized
-			ifrssi = ifrssi.Sub(metric.TxNodesRSRP[0])
-		} else {
-			minfo.RSSI = metric.TxNodesRSRP[0]
-
-		}
-
-		residual := ifrssi[MAXINTER:]
-		residual = vlib.InvDbF(residual)
-		ifrssi = ifrssi[0:MAXINTER]
-
-		minfo.IfRSSI = ifrssi // the first entry is best
-		minfo.ThermalNoise = metric.N0
-		if DONORM {
-			minfo.ThermalNoise -= metric.RSSI
-		}
-		minfo.SINR = metric.BestSINR
-		if vlib.Sum(residual) > 0 {
-			minfo.RestOfInterference = vlib.Db(vlib.Sum(residual))
-		} else {
-			minfo.RestOfInterference = -999999
-		}
-
-		src := singlecell.Nodes[minfo.BaseID].Location
-		dest := singlecell.Nodes[minfo.UserID].Location
-		dist := src.DistanceFrom(dest)
-		minfo.Distance = dist
-		//// test Inf
-		_, err := json.Marshal(minfo)
-		if err != nil {
-			fmt.Printf("\nError %v \n UID %#v , ROI %v", err, minfo, vlib.Sum(residual))
-		}
-		MatlabResult[indx] = minfo
-	}
-	return MatlabResult
-
 }
 
 func penetrationLossFn(tx, rx deployment.Node) float64 {
 	// var Out2IndoorLoss float64 = 13
 	// var RxNoiseFigure float64 = 7
 	// log.Print(tx.ID, tx.Indoor, rx.ID, rx.Indoor, NoiseFigureDb)
-	var losses float64 = 0
-
-	if rx.Indoor != tx.Indoor {
-		// losses += C.Out2IndoorLossDb // Using model based value
-		d2In := rand.Float64() * 10.0 // Uniform [0 to 10m]
-		losses += rma.O2ILossDb(rma.FGHz(), d2In)
-
-	}
+	var losses float64 = 8 // add a 8dB additionall loss
 
 	if rx.InCar {
 		losses += CM.O2ICarLossDb() //C.INCARLossdB

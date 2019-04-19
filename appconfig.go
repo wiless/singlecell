@@ -25,7 +25,12 @@ type AppConfig struct {
 	AntennaVTilt    float64
 	Extended        bool
 	ForceAllLOS     bool
+	ShadowLoss      bool
 	BandwidthMHz    float64
+	BSHeight        float64
+	UEHeight        float64
+	LogInfo         bool
+	NumUEperCell    int
 }
 
 var C AppConfig // Global Configuration variable
@@ -42,6 +47,9 @@ func (C *AppConfig) SetDefaults() {
 	C.BandwidthMHz = 10
 	C.UENoiseFigureDb = 7
 	C.BSNoiseFigureDb = 5
+	C.ShadowLoss = true
+	C.LogInfo = false
+	C.NumUEperCell = 30
 	// C.TrueCells = -1   // Default to all the cells
 	// Do for others too
 }
@@ -82,7 +90,6 @@ func ReadAppConfig() {
 	// Load from the external configuration files
 	ISD = viper.GetFloat64("ISD")
 	TxPowerDbm = viper.GetFloat64("TxpowerDBm")
-	NMobileUEs = viper.GetInt("NumUEperCell")
 
 	CellRadius = ISD / math.Sqrt(3.0)
 	fmt.Print(C)

@@ -6,7 +6,7 @@
 	"Nodes": 360,
 	"Omni": false,
 	"MfileName": "antenna.m",
-	"VTiltAngle": 4,
+	"VTiltAngle": 6,
 	"HTiltAngle": 0,
 	"BeamTilt": 0,
 	"DisableBeamTit": false,

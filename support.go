@@ -2,14 +2,18 @@ package main
 
 import (
 	"fmt"
-	"log"
+
+	log "github.com/Sirupsen/logrus"
+
 	"os"
 	"path/filepath"
 	"strconv"
 
+	cell "github.com/wiless/cellular"
 	"github.com/wiless/cellular/antenna"
 	"github.com/wiless/cellular/deployment"
 	"github.com/wiless/vlib"
+	"gonum.org/v1/gonum/stat"
 )
 
 func SwitchBack() {
@@ -92,7 +96,7 @@ func CreateAntennas(system deployment.DropSystem, bsids vlib.VectorI) {
 
 	// vlib.LoadStructure("omni.json", omni)
 	// vlib.LoadStructure("sector.json", sector)
-
+	matlab.Command("figure")
 	for _, i := range bsids {
 
 		systemAntennas[i] = antenna.NewAAS()
@@ -194,7 +198,7 @@ func loadDefaults() {
 	defaultAAS.FreqHz = CarriersGHz[0]
 	// defaultAAS.BeamTilt = 0
 	// defaultAAS.DisableBeamTit = false
-	defaultAAS.VTiltAngle = VTILT
+	// defaultAAS.VTiltAngle = VTILT
 	// defaultAAS.ESpacingVFactor = .5
 	// defaultAAS.HTiltAngle = 0
 	// defaultAAS.MfileName = "output.m"
@@ -205,4 +209,107 @@ func loadDefaults() {
 	// defaultAAS.CurveWidthInDegree = 30.0
 	// defaultAAS.CurveRadius = 1.00
 
+}
+
+// PrintCalibration prints the column of data used in calibration table of 3GPP
+func PrintCalibration(metric map[int]cell.LinkMetric, rxids vlib.VectorI, fname string) {
+	SwitchOutput()
+	CFX := vlib.ToVectorF("0:100")
+
+	CLsamples := vlib.NewVectorF(len(rxids))
+	SINRsamples := vlib.NewVectorF(len(rxids))
+	for i, rxid := range rxids {
+		CLsamples[i] = metric[rxid].BestRSRP
+		SINRsamples[i] = metric[rxid].BestSINR
+	}
+	CLsamples = CLsamples.Sorted()
+	SINRsamples = SINRsamples.Sorted()
+	vCouplingLoss := vlib.NewVectorF(CFX.Len())
+	vSINR := vlib.NewVectorF(CFX.Len())
+	mscript := vlib.NewMatlab("calibration")
+	fid, _ := os.Create(fname)
+	fmt.Fprintf(fid, "%% CDF\tCouplingGain\tSINR")
+	for i, cfx := range CFX {
+		vSINR[i] = stat.Quantile(cfx/100, stat.Empirical, SINRsamples, nil)
+		vCouplingLoss[i] = stat.Quantile(cfx/100, stat.Empirical, CLsamples, nil)
+		fmt.Fprintf(fid, "\n%f\t%f\t%f", cfx, vCouplingLoss[i], vSINR[i])
+	}
+	fid.Close()
+
+	mscript.Silent = true
+	defer mscript.Close()
+	mscript.Export("CFX", CFX)
+	mscript.Export("CouplingLoss", vCouplingLoss)
+	mscript.Export("SINR", vSINR)
+	SwitchBack()
+
+}
+
+func printCDF(v vlib.VectorF) {
+	result := v.Sorted()
+	couplingLoss := vlib.ToVectorF("-160:-20")
+	cdf := vlib.NewVectorF(couplingLoss.Len())
+	// i := 0
+	for i, q := range couplingLoss {
+		val := stat.CDF(q, stat.Empirical, result, nil)
+		cdf[i] = val
+	}
+	SwitchOutput()
+	matlab2 := vlib.NewMatlab("calibration")
+	matlab2.Silent = true
+	SwitchBack()
+
+	defer matlab2.Close()
+	matlab2.Export("couplingGain", couplingLoss)
+	matlab2.Export("cdf", cdf)
+	matlab2.Command("open CalibrationResults.fig")
+
+	CLGain := vlib.NewVectorF(101)
+	CFX := vlib.ToVectorF("0:100")
+
+	for i, cfx := range CFX {
+		val := stat.Quantile(cfx/100, stat.Empirical, result, nil)
+		CLGain[i] = val
+
+	}
+	matlab2.Export("CLGain", CLGain)
+	matlab2.Export("cfx", vlib.ToVectorF("0:100"))
+
+	matlab2.Command("hold all;")
+	matlab2.Command("plot(couplingGain,cdf)")
+
+	// Quantile
+}
+
+func DebugAntennaPattern() {
+	SwitchOutput()
+	mscript := vlib.NewMatlab("pattern")
+	mscript.Silent = true
+	defer mscript.Close()
+	SwitchBack()
+
+	azimuth := vlib.ToVectorF("0:360")
+	elevation := vlib.ToVectorF("0:180")
+
+	var HGain vlib.VectorF
+	_ = elevation
+	for i, theta := range azimuth {
+		az, _, hgain := antenna.BSPatternDb(theta, 99)
+		HGain.AppendAtEnd(hgain)
+		azimuth[i] = az
+		// elevation[i] = el
+	}
+
+	mscript.Export("azimuth", azimuth)
+	mscript.Export("azimuthGain", HGain)
+	mscript.Command("figure;")
+	mscript.Command("polar(deg2rad(azimuth),db2pow(azimuthGain),'r.');")
+	mscript.Command("figure;")
+	mscript.Command("plot(azimuth,(azimuthGain),'r.');")
+
+}
+
+func testCircular() {
+	pts := deployment.AnnularRingEqPoints(deployment.ORIGIN, 100, 30)
+	fmt.Printf("pos=%v", pts)
 }

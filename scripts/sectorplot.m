@@ -28,8 +28,7 @@ end
 %end
 
 stable=sortrows(table,1);
-rows=length(stable);
-
+rows=size(stable,1);
 stable=[stable uelocations(1:rows,2) uelocations(1:rows,3) angle(uelocations(1:rows,2)+i*uelocations(1:rows,3))*180/pi];
  
 
@@ -72,26 +71,27 @@ syssinr=stable( : ,8);
       %stable=stable(find(stable(:,8)<=10),:)
 
 figure(1) 
+cdfplot(table(:,6));title('Coupling Loss');
+figure(10)
+cdfplot(syssinr);title('Geometric SINR');
 
-% cdfplot(syssinr)
 figure(2)
-% [Nrows Ncols]=size(stable);
-% NUEsPerCell=100;
-% cell=3;
-% uerows=[1:NUEsPerCell]+NUEsPerCell*(cell-1);
-% stable(Nrows,Ncols+3)=0;
-% for indx=1:Nrows
-%     findx=find(uelocations(:,1)==stable(indx,1));
-%     extracols=[uelocations(findx,2:3) radtodeg(angle(uelocations(findx,2)+i*uelocations(findx,3)))];
-%     
-%     stable(indx,Ncols+1:Ncols+3)=extracols;
-% end
-% 
-% hold on;
+[Nrows Ncols]=size(stable);
+NUEsPerCell=cfg.NumUEperCell;
+cell=3;
+uerows=[1:NUEsPerCell]+NUEsPerCell*(cell-1);
+stable(Nrows,Ncols+3)=0;
+for indx=1:Nrows
+    findx=find(uelocations(:,1)==stable(indx,1));
+    extracols=[uelocations(findx,2:3) radtodeg(angle(uelocations(findx,2)+i*uelocations(findx,3)))];
+    
+    stable(indx,Ncols+1:Ncols+3)=extracols;
+end
+hold on;
 
 plot(bslocations(:,2),bslocations(:,3),'*k','MarkerSize',10)
 hold on;
-% plot(antennalocations(:,1),antennalocations(:,2),'Or','MarkerSize',10) 
+plot(antennalocations(:,1),antennalocations(:,2),'Or','MarkerSize',10) 
 
 % stable=stable(1:500,:);
 bestbsid=stable(:,7);
@@ -142,5 +142,7 @@ saveas(gcf,fname,'jpg')
 figure(3)
 saveas(gcf,'SingleCellCoverage','fig')
 %saveas(gcf,'SingleCellCoverage','jpg')
+
+
 
 

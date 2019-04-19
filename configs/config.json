@@ -9,9 +9,13 @@
 	"INCARLossdB": 10,
 	"ActiveCells": 19,
 	"TrueCells":1,
-	"AntennaVTilt": 12,
-	"NumUEperCell":1000,
+	"AntennaVTilt": 6,
+	"NumUEperCell":600,
 	"ForceAllLOS":false,
 	"BandwidthMHz":10,
+	"BSHeight":35,
+	"UEHeight":1.5,
+	"ShadowLoss":false,
+	"LogInfo":false,
 	"Extended":true
 }
