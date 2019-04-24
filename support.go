@@ -17,129 +17,80 @@ import (
 )
 
 func SwitchBack() {
-	pwd, _ := os.Getwd()
-	log.Printf("Switching to DEFAULT %s to %s ", pwd, currentdir)
+	// pwd, _ := os.Getwd()
+	// pwd, _ = filepath.EvalSymlinks(pwd)
+	// cwd, _ := filepath.EvalSymlinks(currentdir)
+	// rel, _ := filepath.Rel(pwd, cwd)
+	// if pwd == cwd {
+	// 	rel = "."
+	// }
+	// log.Printf("Switching Back", rel)
 	os.Chdir(currentdir)
 }
 
 func SwitchInput() {
 	pwd, _ := os.Getwd()
 	currentdir = pwd
-	log.Printf("Switching to INPUT %s to %s ", pwd, indir)
+	rel, _ := filepath.Rel(currentdir, indir)
+	log.Printf("Switching to INPUT DIR ./%s", rel)
 	os.Chdir(indir)
 
 }
 func SwitchOutput() {
 	pwd, _ := os.Getwd()
 	currentdir = pwd
-	log.Printf("Switching to OUTPUT %s to %s ", pwd, outdir)
+	rel, _ := filepath.Rel(currentdir, outdir)
+	log.Printf("Switching to OUTPUT DIR ./%s", rel)
 	os.Chdir(outdir)
 }
 
-// func LoadUELocationsV(system *deployment.DropSystem) vlib.VectorC {
+func startMScript(fname string) *vlib.Matlab {
+	SwitchOutput()
+	m := vlib.NewMatlab("deployment")
+	SwitchBack()
+	m.Silent = true
+	m.Json = false
+	return m
+}
 
-// 	var uelocations vlib.VectorC
-// 	hexCenters := deployment.HexGrid(trueCells, vlib.FromCmplx(deployment.ORIGIN), CellRadius, 30)
-// 	for indx, bsloc := range hexCenters {
-// 		// log.Printf("Deployed for cell %d at %v", indx, bsloc.Cmplx())
-// 		_ = indx
-// 		// 3-Villages in the HEXAGONAL CELL
-// 		//villageCentre := deployment.HexRandU(bsloc, CellRadius, NVillages, 30)
+// AttachAntennas attaches antennas to the nodes of type base-stations
+func AttachAntennas(system deployment.DropSystem, bsids vlib.VectorI) {
 
-// 		// Practical
-// 		//	villageCentres := deployment.AnnularRingPoints(bsloc.Cmplx(), 1500, 3000, NVillages)
-// 		villageCentres := deployment.AnnularRingEqPoints(bsloc.Cmplx(), VillageDistance, NVillages) /// On
-// 		offset := vlib.RandUFVec(NVillages).ShiftAndScale(0, 500.0)                                 // add U(0,1500)  scale by 1 to 2.0
-// 		rotate := vlib.RandUFVec(NVillages).ScaleAndShift(math.Pi/10, -math.Pi/20)                  // +- 10 degrees
-// 		_ = rotate
-// 		_ = offset
-// 		for v, vc := range villageCentres {
-// 			// Add Random offset U(0,1500) Radially
-// 			c := vc + cmplx.Rect(offset[v], cmplx.Phase(vc)) // +rotate[v]
-
-// 			// log.Printf("Adding Village %d of GP %d , VC  %v , Radial Offset %v , %v, RESULT %v", v, indx, vc, offset[v], (cmplx.Phase(vc)), cmplx.Abs(c-vc))
-// 			log.Printf("Adding Village %d of GP %d  : %d users", v, indx, NUEsPerVillage)
-// 			villageUElocations := deployment.CircularPoints(c, VillageRadius, NUEsPerVillage)
-
-// 			uelocations = append(uelocations, villageUElocations...)
-// 		}
-
-// 	}
-
-// 	return uelocations
-// }
-
-// func LoadUELocationsGP(system *deployment.DropSystem) vlib.VectorC {
-
-// 	var uelocations vlib.VectorC
-// 	hexCenters := deployment.HexGrid(trueCells, vlib.FromCmplx(deployment.ORIGIN), CellRadius, 30)
-// 	for indx, bsloc := range hexCenters {
-// 		log.Printf("Dropping GP %d UEs for cell %d", GPusers, indx)
-
-// 		// AT GP
-// 		uelocation := deployment.CircularPoints(bsloc.Cmplx(), GPradius, GPusers)
-// 		uelocations = append(uelocations, uelocation...)
-
-// 	}
-
-// 	return uelocations
-
-// }
-
-func CreateAntennas(system deployment.DropSystem, bsids vlib.VectorI) {
+	generateMScript := true
 	if systemAntennas == nil {
 		systemAntennas = make(map[int]*antenna.SettingAAS)
 	}
 
-	// omni := antenna.NewAAS()
-	// sector := antenna.NewAAS()
+	var m *vlib.Matlab
 
-	// vlib.LoadStructure("omni.json", omni)
-	// vlib.LoadStructure("sector.json", sector)
-	matlab.Command("figure")
+	if generateMScript {
+		m = startMScript("deployment")
+		m.Command("figure")
+		cmd := `delta=pi/180;
+		phaseangle=0:delta:2*pi-delta;`
+		m.Command(cmd)
+	}
+
 	for _, i := range bsids {
 
 		systemAntennas[i] = antenna.NewAAS()
-		// copy(systemAntennas[i], defaultAAS)
-		// SwitchInput()
-		// vlib.LoadStructure("sector.json", systemAntennas[i])
-		// SwitchBack()
 		*systemAntennas[i] = defaultAAS
-
-		// systemAntennas[i].FreqHz = CarriersGHz[0] * 1.e9
-		// systemAntennas[i].HBeamWidth = 65
-
 		systemAntennas[i].HTiltAngle = system.Nodes[i].Direction
-
-		// if nSectors == 1 {
-		// 	systemAntennas[i].Omni = true
-		// } else {
-		// 	systemAntennas[i].Omni = false
-		// }
+		
 		systemAntennas[i].CreateElements(system.Nodes[i].Location)
-		// fmt.Printf("\nType=%s , BSid=%d : System Antenna : %v", system.Nodes[i].Type, i, systemAntennas[i].Centre)
-
 		hgain := vlib.NewVectorF(360)
-		// vgain := vlib.NewVectorF(360)
-
 		cnt := 0
-		cmd := `delta=pi/180;
-		phaseangle=0:delta:2*pi-delta;`
-		matlab.Command(cmd)
 		for d := 0; d < 360; d++ {
 			hgain[cnt] = systemAntennas[i].ElementDirectionHGain(float64(d))
-			//		hgain[cnt] = systemAntennas[i].ElementEffectiveGain(thetaH, thetaV)
 			cnt++
 		}
-
-		// SwitchOutput()
-		matlab.Export("gain"+strconv.Itoa(i), hgain)
-		// SwitchBack()
-		// fmt.Printf("\nBS %d, Antenna : %#v", i, systemAntennas[i])
-
-		cmd = fmt.Sprintf("polar(phaseangle,gain%d);hold all", i)
-		matlab.Command(cmd)
+		if generateMScript {
+			m.Export("gain"+strconv.Itoa(i), hgain)
+			cmd := fmt.Sprintf("polar(phaseangle,gain%d);hold all", i)
+			m.Command(cmd)
+		}
 	}
+	m.Close()
 }
 
 func ReadConfig() {
@@ -183,9 +134,12 @@ func ReadConfig() {
 	}
 	outdir, _ = filepath.Abs(outdir)
 	indir, _ = filepath.Abs(indir)
+	rel, _ := filepath.Rel(defaultdir, defaultdir)
 	log.Printf("WORK directory : %s", defaultdir)
-	log.Printf("INPUT directory :  %s", indir)
-	log.Printf("OUTPUT directory :  %s", outdir)
+	rel, _ = filepath.Rel(defaultdir, indir)
+	log.Printf("INPUT directory :  ./%s", rel)
+	rel, _ = filepath.Rel(defaultdir, outdir)
+	log.Printf("OUTPUT directory :  ./%s", rel)
 
 	// Read other parameters of the Application
 
@@ -294,7 +248,7 @@ func DebugAntennaPattern() {
 	var HGain vlib.VectorF
 	_ = elevation
 	for i, theta := range azimuth {
-		az, _, hgain := antenna.BSPatternDb(theta, 99)
+		az, _, hgain := antenna.BSPatternDb(theta, 90.0+C.AntennaVTilt)
 		HGain.AppendAtEnd(hgain)
 		azimuth[i] = az
 		// elevation[i] = el

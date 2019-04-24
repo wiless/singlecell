@@ -45,7 +45,7 @@ stable=[stable uelocations(1:rows,2) uelocations(1:rows,3) angle(uelocations(1:r
 % for SNR
 %nodecolortable=[uelocations(:,1) stable(:,2) uelocations(:,2:3) stable(:,6)-stable(:,4) ]; % getting SINR  else stable(:,8)
 % for SINR
-nodecolortable=[uelocations(:,1) stable(:,2) uelocations(:,2:3) stable(:,8) ]; % getting SINR  else stable(:,8)
+nodecolortable=[uelocations(:,1) stable(:,2) uelocations(:,2:3) stable(:,8) stable(:,6) ]; % getting SINR  else stable(:,8)
 
 % CASE A2
 % FILTER UE beyond 1000m from center
@@ -97,7 +97,10 @@ plot(antennalocations(:,1),antennalocations(:,2),'Or','MarkerSize',10)
 bestbsid=stable(:,7);
 sinrs=stable(:,8);
 distances=stable(:,9);
-drawPolyGon(complex(bslocations(:,2),bslocations(:,3)),ISD/sqrt(3));
+activbs=find(bslocations(:,7)==1);
+drawPolyGon(complex(bslocations(activbs,2),bslocations(activbs,3)),ISD/sqrt(3),'k');
+inactivbs=find(bslocations(:,7)==0);
+drawPolyGon(complex(bslocations(inactivbs,2),bslocations(inactivbs,3)),ISD/sqrt(3),'.');
 % drawPolyGon(complex(antennalocations(:,1),antennalocations(:,2)),ISD/sqrt(3),'b',2);
 %  
 % clust1=20:37;
@@ -109,19 +112,24 @@ nCells=size(bslocations,1)/nSectors;
 MAXSINR=90
 hold on;
 k=0:nCells-1;
-selectedUEs0=find((bestbsid>=k(1)).*(bestbsid<=k(end)).*(sinrs<MAXSINR));
-sec0ues=stable(selectedUEs0,10:11);
-k=k+nCells;
-selectedUEs1=find((bestbsid>=k(1)).*(bestbsid<=k(end)).*(sinrs<MAXSINR));
-sec1ues=stable(selectedUEs1,10:11);
-k=k+nCells;
-selectedUEs2=find((bestbsid>=k(1)).*(bestbsid<=k(end)).*(sinrs<MAXSINR));
-sec2ues=stable(selectedUEs2,10:11);
+directions=[0 120 -120];
+scolors=['r*' 'k*' 'b*'];
 
+sec0bs=bslocations(find(bslocations(:,6)==0),1);
+sec1bs=bslocations(find(bslocations(:,6)==120),1);
+sec2bs=bslocations(find(bslocations(:,6)==-120),1);
+
+selectedUEs0=stable(find((bestbsid>=min(sec0bs)).*(bestbsid<=max(sec0bs))),1);
+selectedUEs1=stable(find((bestbsid>=min(sec1bs)).*(bestbsid<=max(sec1bs))),1);
+selectedUEs2=stable(find((bestbsid>=min(sec2bs)).*(bestbsid<=max(sec2bs))),1);
+
+sec0pos=FindUEs(selectedUEs0, uelocations,1);
+sec1pos=FindUEs(selectedUEs1, uelocations,1);
+sec2pos=FindUEs(selectedUEs2, uelocations,1);
  
-h=plot(sec0ues(:,1),sec0ues(:,2),'r*');hold on
- plot(sec1ues(:,1),sec1ues(:,2),'k*');hold on
- plot(sec2ues(:,1),sec2ues(:,2),'b*');hold on
+h=plot(uelocations(sec0pos,2),uelocations(sec0pos,3),'r*');hold on
+ plot(uelocations(sec1pos,2),uelocations(sec1pos,3),'k*');
+ plot(uelocations(sec2pos,2),uelocations(sec2pos,3),'b*');
  legend ('sec0','sec1','sec2')
 
 

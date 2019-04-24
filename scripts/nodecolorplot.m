@@ -7,9 +7,9 @@ frequency= unique(nodeinfo(:,2))';
 for f=frequency
 nodeinfoTable=nodeinfo(find(nodeinfo(:,2)==f),:);
 
-% filtered=1:length(nodeinfoTable)
- filtered=find(nodeinfoTable(:,col)>-7);
-% filtered=find(nodeinfoTable(:,col)>-5);
+%  filtered=1:length(nodeinfoTable)
+  filtered=find(nodeinfoTable(:,col)<55);
+%filtered=find(nodeinfoTable(:,col)>25);
 % filtered=find(uelocations(:,6)<3500);
 
 
@@ -17,6 +17,7 @@ nodeinfoTable=nodeinfo(find(nodeinfo(:,2)==f),:);
 figure
 
 sinr=nodeinfoTable(filtered,col);
+CHECKFILTER=nodeinfoTable(filtered,:)
 cmap=colormap;
 LEVELS=length(cmap);
 minsinr=-36;
@@ -33,6 +34,7 @@ sinrrange
 LEVELS
 delta = (sinrrange/LEVELS)
 C=floor(sinr/delta);
+clevel=clevel+1;
 C=cedges(clevel);
 
 scatter3(nodeinfoTable(filtered,3),nodeinfoTable(filtered,4),nodeinfoTable(filtered,col),S,C,'filled')
