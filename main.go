@@ -179,6 +179,7 @@ func main() {
 	}
 
 	PrintCalibration(RxMetrics400, rxids, "calibration.dat")
+	
 
 	SwitchOutput()
 	{ // Dump UE locations

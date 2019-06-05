@@ -3,11 +3,14 @@ package main
 import (
 	"fmt"
 
-	log "github.com/Sirupsen/logrus"
-
 	"os"
 	"path/filepath"
 	"strconv"
+
+	log "github.com/Sirupsen/logrus"
+	"gonum.org/v1/plot"
+	"gonum.org/v1/plot/plotter"
+	"gonum.org/v1/plot/vg"
 
 	cell "github.com/wiless/cellular"
 	"github.com/wiless/cellular/antenna"
@@ -76,7 +79,7 @@ func AttachAntennas(system deployment.DropSystem, bsids vlib.VectorI) {
 		systemAntennas[i] = antenna.NewAAS()
 		*systemAntennas[i] = defaultAAS
 		systemAntennas[i].HTiltAngle = system.Nodes[i].Direction
-		
+
 		systemAntennas[i].CreateElements(system.Nodes[i].Location)
 		hgain := vlib.NewVectorF(360)
 		cnt := 0
@@ -189,7 +192,7 @@ func PrintCalibration(metric map[int]cell.LinkMetric, rxids vlib.VectorI, fname 
 		fmt.Fprintf(fid, "\n%f\t%f\t%f", cfx, vCouplingLoss[i], vSINR[i])
 	}
 	fid.Close()
-
+	plotCDF(vCouplingLoss)
 	mscript.Silent = true
 	defer mscript.Close()
 	mscript.Export("CFX", CFX)
@@ -197,6 +200,50 @@ func PrintCalibration(metric map[int]cell.LinkMetric, rxids vlib.VectorI, fname 
 	mscript.Export("SINR", vSINR)
 	SwitchBack()
 
+}
+
+func plotCDF(v vlib.VectorF) {
+	var Fx vlib.Vector2D
+	Fx.Y, Fx.X = CDF(v)
+
+	// Make a plot and set its title.
+	p, err := plot.New()
+	if err != nil {
+		panic(err)
+	}
+	p.Title.Text = "CDF"
+
+	// Create a histogram of our values drawn
+	// from the standard normal.
+	l, _, err := plotter.NewLinePoints(Fx)
+	if err != nil {
+		panic(err)
+	}
+	// Normalize the area under the histogram to
+	// sum to one.
+	p.Add(l)
+	p.Add(plotter.NewGrid())
+
+	// Save the plot to a PNG file.
+	if err := p.Save(5*vg.Inch, 5*vg.Inch, "hist.svg"); err != nil {
+		panic(err)
+	}
+	// Quantile
+}
+
+//Returns the CDF of the input vector v,
+//Input may not be sorted, so it is sorted internally
+func CDF(v vlib.VectorF) (Fx, x vlib.VectorF) {
+	result := v.Sorted()
+	rangestr := fmt.Sprintf("%f:%f", result[0], result[len(v)-1])
+	couplingLoss := vlib.ToVectorF(rangestr)
+	cdf := vlib.NewVectorF(couplingLoss.Len())
+	// i := 0
+	for i, q := range couplingLoss {
+		val := stat.CDF(q, stat.Empirical, result, nil)
+		cdf[i] = val
+	}
+	return cdf, couplingLoss
 }
 
 func printCDF(v vlib.VectorF) {
